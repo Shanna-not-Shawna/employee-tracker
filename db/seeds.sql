@@ -16,7 +16,7 @@ VALUES ("CEO", 140000, 1),
        ("Creative Director", 110000, 3),
        ("Art Director", 90000, 3),
        ("Character Artist", 75000, 3),
-       ("Project Manager", 100000, 4),
+       ("Project Manager", 100000, 4)
        ("Scrum Master", 90000, 4),
        ("Project Analyst", 80000, 4);
 

@@ -78,7 +78,7 @@ async function startUp() {
 
 async function viewAllDepartments() {
     try {
-        const queryString = `SELECT * FROM department`
+        const queryString = `SELECT department.id AS "Dept ID", department.name AS "Department" FROM department`
         const [departments] = await db.promise().query(queryString);
         console.table(departments);
 
@@ -91,7 +91,7 @@ async function viewAllDepartments() {
 async function viewAllRoles() {
     try {
         const queryString = `
-    SELECT role.id, title, name AS department, salary FROM role INNER JOIN department ON department_id = department.id;
+    SELECT role.id AS "ID", title AS "Job Title", name AS "Department", salary AS "Salary" FROM role INNER JOIN department ON department_id = department.id
     `
     const [roles] = await db.promise().query(queryString);
     console.table(roles);
@@ -103,14 +103,7 @@ async function viewAllRoles() {
 async function viewAllEmployees() {
     try {
         const queryString = `
-    SELECT employee.id, employee.first_name, employee.last_name, role.title, department.name AS "department", role.salary, CONCAT(manager.first_name, " ", manager.last_name) AS manager
-    FROM employee 
-    INNER JOIN role 
-        ON role.id = employee.role_id 
-    INNER JOIN department
-        on role.department_id = department.id
-    JOIN employee AS manager
-        on employee.manager_id = manager.id;
+    SELECT employee.id AS "ID", CONCAT(employee.first_name, " ", employee.last_name) AS "Employee Name", role.title AS "Job Title", department.name AS "Department", role.salary AS "Salary", CONCAT(manager.first_name, " ", manager.last_name) AS "Manager" FROM employee JOIN role ON role.id = employee.role_id JOIN department on role.department_id = department.id LEFT JOIN employee AS manager on employee.manager_id = manager.id ORDER BY id
     `
         const [employees] = await db.promise().query(queryString);
         console.table(employees);
