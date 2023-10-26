@@ -33,9 +33,9 @@ const db = mysql.createConnection(
     console.log(`Connected to the employees_db database.`)
 );
 
-// db.query('SELECT * FROM employees', function (err, results) {
-//     console.log(results);
-// });
+db.query('SELECT * FROM employees', function (err, results) {
+    console.log(results);
+});
 
 async function startUp() {
     const answers = await inquirer.prompt([
@@ -43,7 +43,7 @@ async function startUp() {
             type: 'list',
             message: 'What would you like to do?',
             name: 'action',
-            choices: ['View all departments', 'View all roles', 'View all employees', 'Add a department', 'Add a role', 'Add an employee', 'Update an employee role'],
+            choices: ['View all departments', 'View all roles', 'View all employees', 'Add a department', 'Add a role', 'Add an employee', 'Update an employee role', 'Quit'],
         }
     ])
 
@@ -58,19 +58,25 @@ async function startUp() {
             await viewAllEmployees();
             break;
         case "Add a department":
-            addDepartment();
+            await addDepartment();
             break;
         case "Add a role":
-            addRole();
+            await addRole();
             break;
         case "Add an employee":
             await addEmployee();
             break;
         case "Update an employee role":
-            updateRole();
+            await updateRole();
             break;
-        default:
+        case "Quit":
+            console.log(`
+            **********************************************
+            Thank you for using Employee Tracker. Goodbye!`
+            );
+            process.exit(0);
             return;
+
     }
 
     startUp();
@@ -91,7 +97,7 @@ async function viewAllDepartments() {
 async function viewAllRoles() {
     try {
         const queryString = `
-    SELECT role.id AS "ID", title AS "Job Title", name AS "Department", salary AS "Salary" FROM role INNER JOIN department ON department_id = department.id
+    SELECT role.id AS "ID", title AS "Role", name AS "Department", salary AS "Salary" FROM role INNER JOIN department ON department_id = department.id
     `
     const [roles] = await db.promise().query(queryString);
     console.table(roles);
@@ -103,7 +109,7 @@ async function viewAllRoles() {
 async function viewAllEmployees() {
     try {
         const queryString = `
-    SELECT employee.id AS "ID", CONCAT(employee.first_name, " ", employee.last_name) AS "Employee Name", role.title AS "Job Title", department.name AS "Department", role.salary AS "Salary", CONCAT(manager.first_name, " ", manager.last_name) AS "Manager" FROM employee JOIN role ON role.id = employee.role_id JOIN department on role.department_id = department.id LEFT JOIN employee AS manager on employee.manager_id = manager.id ORDER BY id
+    SELECT employee.id AS "ID", CONCAT(employee.first_name, " ", employee.last_name) AS "Employee Name", role.title AS "Role", department.name AS "Department", role.salary AS "Salary", CONCAT(manager.first_name, " ", manager.last_name) AS "Manager" FROM employee JOIN role ON role.id = employee.role_id JOIN department on role.department_id = department.id LEFT JOIN employee AS manager on employee.manager_id = manager.id ORDER BY id
     `
         const [employees] = await db.promise().query(queryString);
         console.table(employees);
@@ -112,53 +118,54 @@ async function viewAllEmployees() {
     }
 }
 
-// TODO finish
 async function addDepartment() {
     const newDepartment = await inquirer.prompt([
         {
-            type: 'text',
+            type: 'input',
             message: 'Enter the name of the department you want to add:',
             name: 'name',
         }
     ])
     try {
-        const [department] = await db.promise().query(queryString);
-        console.table(department);
+        await db.promise().query("INSERT INTO department SET ?", newDepartment);
+        console.log(`${newDepartment.name} has been added!`)
     } catch (err) {
         console.log("Something went wrong", err)
     }
-    // .then(answers => {
-    //     const newDepartment = answers.dptname
-    //     console.log(newDepartment)
-    //     const queryString = `
-    //     INSERT INTO department (name) VALUES ('${answers.dptName}')
-    //     `
-    // })
 }
 
-// TODO finish
-function addRole() {
-    inquirer.prompt([
+async function addRole() {
+    const departmentChoices = await getAllDepartments();
+    const newRole = await inquirer.prompt([
         {
-            type: 'text',
+            type: 'input',
             message: 'Enter the name of the role you want to add:',
-            name: 'roleName',
+            name: 'title',
+        },
+        {
+            type: 'input',
+            message: 'Enter the salary of the new role:',
+            name: 'salary',
+        },
+        {
+            type: 'list',
+            message: 'Which department does the role belong to?',
+            name: 'department_id',
+            choices: departmentChoices
         }
-    ]).then(answers => {
-        const newRole = answers.roleName
-        console.log(newDepartment)
-        const queryString = `
-        INSERT INTO role (name) VALUES ('$answers.roleName')
-        `
-    })
+    ])
+    try {
+        await db.promise().query("INSERT INTO role SET ?", newRole);
+        console.log(`${newRole.title} has been added!`)
+    } catch (err) {
+        console.log("Something went wrong", err)
+    }
 }
 
-// TODO finish
 async function addEmployee() {
     try {
         const roleChoices = await getAllRoles();
         const managerChoices = await getAllManagers();
-
         const newEmployee = await inquirer.prompt([
             {
                 type: 'text',
@@ -183,29 +190,36 @@ async function addEmployee() {
                 choices: managerChoices
             },
         ])
-
         await db.promise().query("INSERT INTO employee SET ?", newEmployee);
         console.log(`${newEmployee.first_name} ${newEmployee.last_name} has been added!`);
     } catch (err) {
         console.log("Oops! Trouble showing all employees.", err);
     }
-
 }
 
-function updateRole() {
-    // inquirer.prompt([
-    //     {
-    //         type: 'list',
-    //         message: "Which employee's role do you want to update?",
-    //         name: 'updateRoleEmployee',
-    //         choices: []
-    //     },
-    //     {
-    //         type: 'list',
-    //         message: "Which role do you want to assign the selected employee?",
-    //         name: 'updateRoleTitle',
-    //         choices: []
-    //     },
+async function updateRole() {
+    const employeeChoices = await getAllEmployees();
+    const roleChoices = await getAllRoles();
+    const newRole = await inquirer.prompt([
+        {
+            type: 'list',
+            message: "Which employee's role would you like to update?",
+            name: 'first_name',
+            choices: employeeChoices
+        },
+        {
+            type: 'list',
+            message: 'Which role do you want to assign the selected employee?',
+            name: 'title',
+            choices: roleChoices
+        }
+    ])
+    try {
+        await db.promise().query("UPDATE employee SET ? WHERE ID = ?", newRole, firstName);
+        console.log(`${newRole.title} has been updated!`)
+    } catch (err) {
+        console.log("Something went wrong", err)
+    }
 }
 
 async function getAllRoles() {
@@ -215,7 +229,24 @@ async function getAllRoles() {
     } catch (err) {
         console.log("Somethings went wrong", err)
     }
+}
 
+async function getAllEmployees() {
+    try {
+        const employeeChoices = await db.promise().query(`SELECT id AS VALUE, CONCAT(employee.first_name, " ", employee.last_name) AS employee FROM employee`);
+        return employeeChoices;
+    } catch (err) {
+        console.log("Somethings went wrong", err)
+    }
+}
+
+async function getAllDepartments() {
+    try {
+        const [departmentChoices] = await db.promise().query(`Select id AS value, name FROM department`);
+        return departmentChoices;
+    } catch (err) {
+        console.log("Somethings went wrong", err)
+    }
 }
 
 async function getAllManagers() {
@@ -229,24 +260,7 @@ async function getAllManagers() {
     } catch (err) {
         console.log("Somethings went wrong", err)
     }
-
 }
-
 
 startUp()
 
-
-// WHEN I choose to view all employees
-// THEN I am presented with a formatted table showing employee data, including employee ids, first names, last names, job titles, departments, salaries, and managers that the employees report to
-
-// WHEN I choose to add a department
-// THEN I am prompted to enter the name of the department and that department is added to the database
-
-// WHEN I choose to add a role
-// THEN I am prompted to enter the name, salary, and department for the role and that role is added to the database
-
-// WHEN I choose to add an employee
-// THEN I am prompted to enter the employee’s first name, last name, role, and manager, and that employee is added to the database
-
-// WHEN I choose to update an employee role
-// THEN I am prompted to select an employee to update and their new role and this information is updated in the database
